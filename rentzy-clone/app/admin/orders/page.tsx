@@ -1,184 +1,207 @@
-// app/admin/orders/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 
-// Định nghĩa kiểu dữ liệu (cho code đỡ báo lỗi đỏ)
+/* =======================
+   KIỂU DỮ LIỆU
+======================= */
+type OrderStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'RENTED'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
 type Order = {
   id: number;
-  status: string;
+  status: OrderStatus;
   totalPrice: number;
   startDate: string;
   endDate: string;
-  user: { name: string; email: string };
-  product: { name: string; image: string };
+  user: {
+    name: string;
+    email: string;
+  };
+  product: {
+    name: string;
+  };
 };
 
+/* =======================
+   MOCK DATA
+======================= */
+const MOCK_ORDERS: Order[] = [
+  {
+    id: 1001,
+    status: 'PENDING',
+    totalPrice: 1200000,
+    startDate: '2025-01-05',
+    endDate: '2025-01-07',
+    user: { name: 'Nguyễn Văn A', email: 'a@gmail.com' },
+    product: { name: 'Váy Dạ Hội Kim Sa' }
+  },
+  {
+    id: 1002,
+    status: 'RENTED',
+    totalPrice: 800000,
+    startDate: '2025-01-03',
+    endDate: '2025-01-04',
+    user: { name: 'Trần Thị B', email: 'b@gmail.com' },
+    product: { name: 'Vest Nam Cao Cấp' }
+  },
+  {
+    id: 1003,
+    status: 'COMPLETED',
+    totalPrice: 500000,
+    startDate: '2024-12-28',
+    endDate: '2024-12-29',
+    user: { name: 'Lê Minh C', email: 'c@gmail.com' },
+    product: { name: 'Áo Dài Truyền Thống' }
+  }
+];
+
+/* =======================
+   PAGE
+======================= */
 export default function OrderManagement() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [filterStatus, setFilterStatus] = useState<'ALL' | OrderStatus>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Load dữ liệu khi vào trang
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  /* =======================
+     UPDATE STATUS (LOCAL)
+  ======================= */
+  const handleUpdateStatus = (id: number, newStatus: OrderStatus) => {
+    if (!confirm(`Đổi trạng thái đơn #${id}?`)) return;
 
-  const fetchOrders = async () => {
-    try {
-      const res = await fetch('/api/orders');
-      const data = await res.json();
-      setOrders(data);
-    } catch (error) {
-      console.error("Lỗi tải đơn hàng");
-    } finally {
-      setLoading(false);
-    }
+    setOrders(prev =>
+      prev.map(order =>
+        order.id === id ? { ...order, status: newStatus } : order
+      )
+    );
   };
 
-  // 2. Hàm đổi trạng thái đơn (Gọi API PATCH)
-  const handleUpdateStatus = async (id: number, newStatus: string) => {
-    // Hỏi xác nhận cho chắc
-    if (!confirm(`Bạn muốn đổi trạng thái đơn #${id} thành ${newStatus}?`)) return;
-
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: newStatus })
-      });
-
-      if (res.ok) {
-        alert("Cập nhật thành công!");
-        fetchOrders(); // Load lại bảng
-      } else {
-        alert("Lỗi cập nhật");
-      }
-    } catch (error) {
-      alert("Lỗi kết nối");
-    }
-  };
-
-  // 3. Logic Lọc & Tìm kiếm
+  /* =======================
+     FILTER + SEARCH
+  ======================= */
   const filteredOrders = orders.filter(order => {
-    const matchesStatus = filterStatus === 'ALL' || order.status === filterStatus;
-    const matchesSearch = 
-        order.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        order.id.toString().includes(searchTerm);
-    return matchesStatus && matchesSearch;
+    const matchStatus =
+      filterStatus === 'ALL' || order.status === filterStatus;
+
+    const matchSearch =
+      order.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toString().includes(searchTerm);
+
+    return matchStatus && matchSearch;
   });
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8 font-sans text-gray-900">
-      
-      {/* Header */}
+    <div className="min-h-screen bg-gray-100 p-8 text-gray-900">
+      {/* HEADER */}
       <div className="flex justify-between items-end mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Quản Lý Đơn Thuê</h1>
-
-        </div>
-        <Link href="/admin" className="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 font-medium text-sm">
-            ⬅ Quay lại Dashboard
+        <h1 className="text-3xl font-bold">Quản Lý Đơn Thuê</h1>
+        <Link
+          href="/admin"
+          className="px-4 py-2 bg-white border rounded hover:bg-gray-50 text-sm"
+        >
+          ⬅ Quay lại Dashboard
         </Link>
       </div>
 
-      {/* Toolbar: Tìm kiếm & Lọc */}
-      <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-        {/* Ô tìm kiếm */}
-        <div className="relative w-full md:w-1/3">
-            <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
-            <input 
-                type="text" 
-                placeholder="Tìm tên khách hoặc mã đơn..." 
-                className="w-full pl-10 pr-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
-        </div>
+      {/* TOOLBAR */}
+      <div className="bg-white p-4 rounded-xl shadow mb-6 flex flex-col md:flex-row gap-4 justify-between">
+        {/* SEARCH */}
+        <input
+          type="text"
+          placeholder="Tìm theo tên khách hoặc mã đơn..."
+          className="border px-4 py-2 rounded-lg w-full md:w-1/3"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
 
-        {/* Bộ lọc trạng thái */}
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-600">Trạng thái:</span>
-            <select 
-                className="border px-3 py-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-            >
-                <option value="ALL">Tất cả</option>
-                <option value="PENDING">🟡 Chờ duyệt</option>
-                <option value="APPROVED">🔵 Đã duyệt / Đang giao</option>
-                <option value="RENTED">🟣 Đang thuê</option>
-                <option value="COMPLETED">🟢 Hoàn thành (Đã trả)</option>
-                <option value="CANCELLED">🔴 Đã hủy</option>
-            </select>
-        </div>
+        {/* FILTER */}
+        <select
+          className="border px-3 py-2 rounded-lg text-sm"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value as any)}
+        >
+          <option value="ALL">Tất cả</option>
+          <option value="PENDING">⏳ Chờ duyệt</option>
+          <option value="APPROVED">🚚 Đã duyệt</option>
+          <option value="RENTED">🤝 Đang thuê</option>
+          <option value="COMPLETED">✅ Hoàn thành</option>
+          <option value="CANCELLED">❌ Đã hủy</option>
+        </select>
       </div>
 
-      {/* Bảng dữ liệu */}
+      {/* TABLE */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-bold border-b">
+          <thead className="bg-gray-50 text-xs uppercase font-bold">
             <tr>
-              <th className="px-6 py-4">Đơn hàng</th>
-              <th className="px-6 py-4">Khách hàng</th>
+              <th className="px-6 py-4">Đơn</th>
+              <th className="px-6 py-4">Khách</th>
               <th className="px-6 py-4">Thời gian</th>
               <th className="px-6 py-4">Tổng tiền</th>
               <th className="px-6 py-4">Trạng thái</th>
               <th className="px-6 py-4 text-right">Xử lý</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-                 <tr><td colSpan={6} className="text-center py-8">Đang tải đơn hàng...</td></tr>
-            ) : filteredOrders.length === 0 ? (
-                 <tr><td colSpan={6} className="text-center py-8 text-gray-500">Không tìm thấy đơn hàng nào.</td></tr>
+
+          <tbody className="divide-y">
+            {filteredOrders.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-8 text-gray-500">
+                  Không có đơn hàng
+                </td>
+              </tr>
             ) : (
-                filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50 transition">
-                  {/* Cột 1: Thông tin sản phẩm & Mã */}
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-blue-600">#{order.id}</div>
-                    <div className="text-sm font-medium text-gray-800 mt-1">{order.product.name}</div>
-                  </td>
-
-                  {/* Cột 2: Khách hàng */}
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{order.user.name || "Khách lẻ"}</div>
-                    <div className="text-xs text-gray-500">{order.user.email}</div>
-                  </td>
-
-                  {/* Cột 3: Thời gian */}
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    <div className="flex flex-col">
-                        <span>Từ: {new Date(order.startDate).toLocaleDateString('vi-VN')}</span>
-                        <span>Đến: {new Date(order.endDate).toLocaleDateString('vi-VN')}</span>
+              filteredOrders.map(order => (
+                <tr key={order.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 font-bold text-blue-600">
+                    #{order.id}
+                    <div className="text-sm text-gray-700 font-medium">
+                      {order.product.name}
                     </div>
                   </td>
 
-                  {/* Cột 4: Tổng tiền */}
-                  <td className="px-6 py-4 font-bold text-orange-600 text-base">
+                  <td className="px-6 py-4">
+                    <div className="font-medium">{order.user.name}</div>
+                    <div className="text-xs text-gray-500">
+                      {order.user.email}
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 text-sm">
+                    <div>Từ: {order.startDate}</div>
+                    <div>Đến: {order.endDate}</div>
+                  </td>
+
+                  <td className="px-6 py-4 font-bold text-orange-600">
                     {order.totalPrice.toLocaleString()}đ
                   </td>
 
-                  {/* Cột 5: Badge Trạng thái */}
                   <td className="px-6 py-4">
                     <StatusBadge status={order.status} />
                   </td>
 
-                  {/* Cột 6: Hành động (Nút bấm) */}
                   <td className="px-6 py-4 text-right">
-                    <select 
-                        className="text-xs border px-2 py-1 rounded bg-white hover:bg-gray-50 cursor-pointer outline-none"
-                        value={order.status}
-                        onChange={(e) => handleUpdateStatus(order.id, e.target.value)}
+                    <select
+                      className="border px-2 py-1 rounded text-xs"
+                      value={order.status}
+                      onChange={e =>
+                        handleUpdateStatus(
+                          order.id,
+                          e.target.value as OrderStatus
+                        )
+                      }
                     >
-                        <option value="PENDING">⏳ Chờ duyệt</option>
-                        <option value="APPROVED">🚚 Giao hàng</option>
-                        <option value="RENTED">🤝 Đang thuê</option>
-                        <option value="COMPLETED">✅ Đã trả / Xong</option>
-                        <option value="CANCELLED">❌ Hủy đơn</option>
+                      <option value="PENDING">⏳ Chờ duyệt</option>
+                      <option value="APPROVED">🚚 Đã duyệt</option>
+                      <option value="RENTED">🤝 Đang thuê</option>
+                      <option value="COMPLETED">✅ Hoàn thành</option>
+                      <option value="CANCELLED">❌ Hủy</option>
                     </select>
                   </td>
                 </tr>
@@ -191,37 +214,31 @@ export default function OrderManagement() {
   );
 }
 
-// Component con hiển thị màu trạng thái
-function StatusBadge({ status }: { status: string }) {
-    let colorClass = "bg-gray-100 text-gray-600";
-    let label = status;
+/* =======================
+   STATUS BADGE
+======================= */
+function StatusBadge({ status }: { status: OrderStatus }) {
+  const map: any = {
+    PENDING: 'bg-yellow-100 text-yellow-700',
+    APPROVED: 'bg-blue-100 text-blue-700',
+    RENTED: 'bg-purple-100 text-purple-700',
+    COMPLETED: 'bg-green-100 text-green-700',
+    CANCELLED: 'bg-red-100 text-red-700'
+  };
 
-    switch (status) {
-        case 'PENDING':
-            colorClass = "bg-yellow-100 text-yellow-700 border border-yellow-200";
-            label = "Chờ duyệt";
-            break;
-        case 'APPROVED':
-            colorClass = "bg-blue-100 text-blue-700 border border-blue-200";
-            label = "Đã duyệt";
-            break;
-        case 'RENTED':
-            colorClass = "bg-purple-100 text-purple-700 border border-purple-200";
-            label = "Đang thuê";
-            break;
-        case 'COMPLETED':
-            colorClass = "bg-green-100 text-green-700 border border-green-200";
-            label = "Hoàn thành";
-            break;
-        case 'CANCELLED':
-            colorClass = "bg-red-100 text-red-700 border border-red-200";
-            label = "Đã hủy";
-            break;
-    }
+  const label: any = {
+    PENDING: 'Chờ duyệt',
+    APPROVED: 'Đã duyệt',
+    RENTED: 'Đang thuê',
+    COMPLETED: 'Hoàn thành',
+    CANCELLED: 'Đã hủy'
+  };
 
-    return (
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colorClass}`}>
-            {label}
-        </span>
-    );
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-bold ${map[status]}`}
+    >
+      {label[status]}
+    </span>
+  );
 }
